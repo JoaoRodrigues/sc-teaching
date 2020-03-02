@@ -277,22 +277,29 @@ def create_database(db_fpath):
 
 Our skeleton code is able to read our database file, given input from the user. But to use the information in the database to plan our route, we have to turn it into something else. Let's think about what we need to plan routes. We have starting and end points, given as combinations of city names and states. We will trace our route by jumping from city to city, so we need to be able to search which cities are close to each other. 
 
-As such, we need to have a data structure that, first of all, stores each city's information, such as name, state, and coordinates. We could use lists or tuples, but we'd have to remember the index of each field (what was the state again? 2nd or 3rd?). We could use dictionaries, so that we could query `city['state']`. However, we will use dataclasses, a new data structure introduced in Python 3.7 that targets this use case specifically - information 'containers'. Dataclasses are regular classes but have a much simplified syntax. Let's write some code to understand them better:
+As such, we need to have a data structure that, first of all, stores each city's information, such as name, state, and coordinates. We could use lists or tuples, but we'd have to remember the index of each field (what was the state again? 2nd or 3rd?). We could use dictionaries, so that we could query `city['state']`. But dictionaries are 1) mutable, meaning we (or someone) could corrupt our database while the program is running and 2) they are somewhat heavy in terms of memory.
+
+Python has a `collections` module that stores additional _container_ data types, which is what we want. In particular, there is a `namedtuple` class that looks like a tuple, acts like a tuple, but its fields can be accessed by their name: e.g. `namedtuple.field`. Isn't that neat?
+
+Let's write some code to understand them better:
 
 ```python
 import argparse
+import collections
 import csv
-from dataclasses import dataclass
 import pathlib 
 ```
 
 ```python
-@dataclass(unsafe_hash=True)
-class City:
-    name: str
-    state: str
-    lat: float
-    lon: float
+City = collections.namedtuple(
+    'City',
+    [
+        'name',
+        'state',
+        'lat',
+        'lon'
+    ]
+)
 ```
 
 ```python
@@ -317,8 +324,6 @@ def create_database(db_fpath):
             )
             print(city)
 ```
-
-The name, state, latitude, and longitude of each city are attributes of the City dataclass, which we can query by doing `city.name`, for example. Besides their simplified syntax, compared to regular, classes, dataclasses also automatically implement a variety of special methods, such as comparison operators. We can also extend them by adding our own methods, as we will see soon. This added flexibility is why we prefer them to using dictionaries to store city information.
 
 Now we need to find a way to store cities so that they are searchable. Here, dictionaries are the perfect data structure. Unlike lists, dictionaries are blazingly fast at retrieving their members. We just need to decide what will be the key for each city. Looking at our input function, a combination of name and state seems to suffice: `"San Francisco, CA" is a simple enough input for our users that we can easily translate into a searchable query. Let's implement that:
 
@@ -414,8 +419,8 @@ Let's write a logging facility for our program, starting by integrating it with 
 
 ```python
 import argparse
+import collections
 import csv
-from dataclasses import dataclass
 import logging
 import pathlib
 ```
@@ -508,127 +513,7 @@ def create_database(db_fpath):
     return city_db
 ```
 
-### Part VI: Doing heavy math the simple (and fast) way.
-
-We are almost ready to write the heart of our program: the route finding algorithm! For this, we will take a simple approach. For a city, we find all other cities within a radius (the value of `--km-per-day`) and then pick the neighbor that is closest to the end point. In order to do this, we need to calculate distances between cities and for this, we can add a method to our `City` dataclass!
-
-We need to import a bunch of functions from the `math` module to calculate the distance between two cities using the [harversine formula](https://en.wikipedia.org/wiki/Haversine_formula).
-
-```python
-import argparse
-import csv
-from dataclasses import dataclass
-import logging
-import math
-import pathlib
-```
-
-Now we add a `distance_to` method to our dataclass:
-
-```python
-@dataclass(unsafe_hash=True)
-class City:
-    name: str
-    state: str
-    lat: float
-    lon: float
-    
-    def distance_to(self, other):
-        """Returns the distance in km between city and other.
-        
-        Uses the Haversine formulate to calculate distances between
-        points on a sphere.
-        
-        Args:
-           other (City): a city dataclass to calculate the distance to.
-        """
-        
-        lat_i, lon_i = self.lat, self.lon
-        lat_j, lon_j = other.lat, other.lon
-
-        # Haversine formula for distances between points on a sphere
-        # https://en.wikipedia.org/wiki/Haversine_formula
-        dlat = lat_j - lat_i
-        dlon = lon_j - lon_i
-
-        a = (
-            (math.sin(dlat/2) * math.sin(dlat/2)) + \
-            math.cos(lat_i) * math.cos(lat_j) * \
-            (math.sin(dlon/2) * math.sin(dlon/2))
-        )
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-        d = 6373  * c  # R is 'a' radius of earth
-
-        return d
-```
-
-However, the Haversine formula requires latitude and longitude values in radians, not degrees, which is the unit we have our data in. Let's add the conversion when we read in cities and add them to the database.
-
-```python
-def create_database(db_fpath):
-    """Reads and creates a database of cities.
-    
-    Args:
-    	db_fpath (str): path to the database file on disk.
-    """
-    
-    city_db = {}
-    
-    path = pathlib.Path(db_fpath)
-
-    with path.open('r') as db_file:
-        for line_idx, line in enumerate(csv.reader(db_file), start=1):
-            try:
-                name, *_, state_code, lat, lon = line
-                lat_rad = math.radians(float(lat))
-                lon_rad = math.radians(float(lon))
-            except Exception as err:
-                logging.warning(f'Error parsing line {line_idx}: {err}')
-                continue
-            else:
-                city = City(
-                    name,
-                    state_code,
-                    lat_rad,
-                    lon_rad
-                )
-                logging.debug(f'Added city: {city.name}, {city.state}')
-
-                city_db[(name, state_code)] = city
-
-    logging.info(f'Read {len(city_db)} cities into a database')
-    return city_db
-```
-
-We can also add a second method to our dataclass to return all cities, from a list of cities, within a given radius:
-
-```python
-@dataclass(unsafe_hash=True)
-class City:
-    name: str
-    state: str
-    lat: float
-    lon: float
-    
-    def distance_to(self, other):
-        ...
-
-    def find_neighbors(self, candidates, radius):
-        """Returns all cities in candidates within radius of self.
-        
-        Args:
-            candidates (list): list of City objects.
-            radius (float): distance cutoff to consider a City a neighbor
-        """
-        
-        for city in candidates:
-            if self.distance_to(city) <= radius:
-                yield city
-```
-
-
-
-### Part VIII: Querying the database
+### Part VII: Querying the database
 
 Before we proceed, we must ensure our beginning and end points of the route are in the database. Since we encoded the database as a dictionary, this is extremely easy to do! Let's write a separate function that takes the cities as we parsed them with `argparse` and tries to return the corresponding City object.
 
@@ -679,7 +564,113 @@ if __name__ == '__main__':
     write_route()
 ```
 
-### Part IX: Writing our route planning algorithm!
+### Part VIII: Doing heavy math the simple (and fast) way.
+
+We are almost ready to write the heart of our program: the route finding algorithm! For this, we will take a simple approach. For a city, we find all other cities within a radius (the value of `--km-per-day`) and then pick the neighbor that is closest to the end point. In order to do this, we need to calculate distances between cities. Let's write a function for that!
+
+We need to import a bunch of functions from the `math` module to calculate the distance between two cities using the [harversine formula](https://en.wikipedia.org/wiki/Haversine_formula).
+
+```python
+import argparse
+import collections
+import csv
+import logging
+import math
+import pathlib
+```
+
+Now we write the `get_distance` function, which takes two cities as arguments and returns the distance between them:
+
+```python
+def get_distance(city_a, city_b):
+    """Returns the distance in km between city_a and city_b.
+
+    Uses the Haversine formulate to calculate distances between
+    points on a sphere.
+
+    Args:
+       city_a (City): origin city namedtuple.
+       city_a (City): destination city namedtuple.
+    """
+
+    lat_i, lon_i = city_a.lat, city_a.lon
+    lat_j, lon_j = city_b.lat, city_b.lon
+
+    # Haversine formula for distances between points on a sphere
+    # https://en.wikipedia.org/wiki/Haversine_formula
+    dlat = lat_j - lat_i
+    dlon = lon_j - lon_i
+
+    a = (
+        (math.sin(dlat/2) * math.sin(dlat/2)) + \
+        math.cos(lat_i) * math.cos(lat_j) * \
+        (math.sin(dlon/2) * math.sin(dlon/2))
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    d = 6373  * c  # R is 'a' radius of earth
+
+    return d
+```
+
+However, the Haversine formula requires latitude and longitude values in radians, not degrees, which is the unit we have our data in. Let's add the conversion when we read in cities and add them to the database.
+
+```python
+def create_database(db_fpath):
+    """Reads and creates a database of cities.
+    
+    Args:
+    	db_fpath (str): path to the database file on disk.
+    """
+    
+    city_db = {}
+    
+    path = pathlib.Path(db_fpath)
+
+    with path.open('r') as db_file:
+        for line_idx, line in enumerate(csv.reader(db_file), start=1):
+            try:
+                name, *_, state_code, lat, lon = line
+                lat_rad = math.radians(float(lat))
+                lon_rad = math.radians(float(lon))
+            except Exception as err:
+                logging.warning(f'Error parsing line {line_idx}: {err}')
+                continue
+            else:
+                city = City(
+                    name,
+                    state_code,
+                    lat_rad,
+                    lon_rad
+                )
+                logging.debug(f'Added city: {city.name}, {city.state}')
+
+                city_db[(name, state_code)] = city
+
+    logging.info(f'Read {len(city_db)} cities into a database')
+    return city_db
+```
+
+### Part IX: Finding neighbors using filter and lambda functions
+
+Now that we can get distances between cities, we can write a small function to get us all the neighbors of a given city. For this, we iterate over a list of candidate cities, which can be the entire database, and return only those within a certain distance cutoff of the query city. In other words, we want a _filter_ function that takes an iterable and a condition and returns only the members of the iterable that meet the condition. We could do this ourselves with a for-loop and an if-statement but Python has built-in functions specifically for this:
+
+```python
+def find_city_neighbors(city, candidates, radius):
+    """Returns all cities in candidates within radius of self.
+
+    Args:
+        city (City): query City.
+        candidates (list): list of City objects.
+        radius (float): distance cutoff to consider a City a neighbor
+    """
+    
+    return filter(
+        lambda c: get_distance(city, c) <= radius,
+        candidates
+    )
+```
+
+### Part X: Writing our route planning algorithm!
 
 It seems we have all the pieces necessary to write our `find_route` function. We want to write it generically enough so that if we add other options/arguments in the future, we make the least changes possible. So, here we go!
 
@@ -698,12 +689,21 @@ def find_route(database, start, finish, km_per_day):
     route = [start]
     visited = set(route)
     list_of_cities = list(database.values())
-    distance_to_end = lambda city: city.distance_to(finish)
+    distance_to_end = lambda city: get_distance(finish, city)
     
     current = start
     while current != finish:
-        neighbors = current.find_neighbors(list_of_cities, km_per_day)
-        sorted_neighbors = sorted(neighbors, key=distance_to_end)
+        neighbors = find_city_neighbors(
+            current,
+            list_of_cities,
+            km_per_day
+        )
+        
+        sorted_neighbors = sorted(
+            neighbors,
+            key=distance_to_end
+        )
+        
         for city in sorted_neighbors:
             if city not in visited:
                 current = city
@@ -719,10 +719,8 @@ def find_route(database, start, finish, km_per_day):
         visited.add(current)
 
         logging.debug(
-            f'Added {current.name}, {current.state} to route'
-        )
-        logging.debug(
-            f'Distance to end: {current.distance_to(finish):5.2f} km'
+            f'Added {current.name}, {current.state} to route: '
+            f'{get_distance(current, finish):5.2f} km to end'
         )
         
     return route
@@ -745,9 +743,7 @@ if __name__ == '__main__':
     write_route()
 ```
 
-
-
-### Part X: Printing our route
+### Part XI: Printing our route
 
 Let's give the user the chance now to see the result of our calculation by writing the `write_route` function and updating the main loop code:
 
@@ -780,7 +776,7 @@ if __name__ == '__main__':
 
 ## Conclusion
 
-We're done! In ~270 lines of code we have a route planner that we can actually use to plan road trips. Throughout this 'journey', we used 6 standard library modules, learned about context managers, `try/except` blocks, f-strings, `else` statements in for-loops, and the `yield` keyword. These are all constructs that are fairly common in Python scripts. In addition, we dipped our feet in object-oriented programming, although we said we wouldn't, through dataclasses. 
+We're done! In ~270 lines of code we have a route planner that we can actually use to plan road trips. Throughout this 'journey', we used 6 standard library modules, learned about context managers, `try/except` blocks, f-strings, `else` statements in for-loops, `filter` and `lambda` functions. These are all constructs that are fairly common in Python scripts.
 
 We understand that this is a lot to take in, and we do not expect you to leave here mastering every topic we just covered. We hope, however, that you are not afraid of diving into the online documentation next time you have to write a script and looking for and trying out new features that are included with your Python installation.
 
@@ -788,4 +784,4 @@ Let us know if you have any questions or feedback, you can reach me at `joaor@st
 
 ---
 
-Last updated: 01 March 2020
+Last updated: 02 March 2020

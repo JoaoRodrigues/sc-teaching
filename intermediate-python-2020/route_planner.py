@@ -9,59 +9,22 @@ Authors:
 """
 
 import argparse
+import collections
 import csv
-from dataclasses import dataclass
 import logging
 import math
 import pathlib
 
 
-@dataclass(unsafe_hash=True)
-class City:
-    name: str
-    state: str
-    lat: float
-    lon: float
-    
-    def distance_to(self, other):
-        """Returns the distance in km between city and other.
-        
-        Uses the Haversine formulate to calculate distances between
-        points on a sphere.
-        
-        Args:
-           other (City): a city dataclass to calculate the distance to.
-        """
-        
-        lat_i, lon_i = self.lat, self.lon
-        lat_j, lon_j = other.lat, other.lon
-
-        # Haversine formula for distances between points on a sphere
-        # https://en.wikipedia.org/wiki/Haversine_formula
-        dlat = lat_j - lat_i
-        dlon = lon_j - lon_i
-
-        a = (
-            (math.sin(dlat/2) * math.sin(dlat/2)) + \
-            math.cos(lat_i) * math.cos(lat_j) * \
-            (math.sin(dlon/2) * math.sin(dlon/2))
-        )
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-        d = 6373  * c  # R is 'a' radius of earth
-
-        return d
-
-    def find_neighbors(self, candidates, radius):
-        """Returns all cities in candidates within radius of self.
-        
-        Args:
-            candidates (list): list of City objects.
-            radius (float): distance cutoff to consider a City a neighbor
-        """
-        
-        for city in candidates:
-            if self.distance_to(city) <= radius:
-                yield city
+City = collections.namedtuple(
+    'City',
+    [
+        'name',
+        'state',
+        'lat',
+        'lon'
+    ]
+)
 
 
 def read_input():
@@ -177,6 +140,51 @@ def validate_cities(database, args):
     args.finish = find_city_in_db(database, args.finish)
 
 
+def get_distance(city_a, city_b):
+    """Returns the distance in km between city_a and city_b.
+
+    Uses the Haversine formulate to calculate distances between
+    points on a sphere.
+
+    Args:
+       city_a (City): origin city namedtuple.
+       city_a (City): destination city namedtuple.
+    """
+
+    lat_i, lon_i = city_a.lat, city_a.lon
+    lat_j, lon_j = city_b.lat, city_b.lon
+
+    # Haversine formula for distances between points on a sphere
+    # https://en.wikipedia.org/wiki/Haversine_formula
+    dlat = lat_j - lat_i
+    dlon = lon_j - lon_i
+
+    a = (
+        (math.sin(dlat/2) * math.sin(dlat/2)) + \
+        math.cos(lat_i) * math.cos(lat_j) * \
+        (math.sin(dlon/2) * math.sin(dlon/2))
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    d = 6373  * c  # R is 'a' radius of earth
+
+    return d
+
+
+def find_city_neighbors(city, candidates, radius):
+    """Returns all cities in candidates within radius of self.
+
+    Args:
+        city (City): query City.
+        candidates (list): list of City objects.
+        radius (float): distance cutoff to consider a City a neighbor
+    """
+    
+    return filter(
+        lambda c: get_distance(city, c) <= radius,
+        candidates
+    )
+
+
 def find_route(database, start, finish, km_per_day):
     """Finds the shortest path between two cities.
     
@@ -191,12 +199,21 @@ def find_route(database, start, finish, km_per_day):
     route = [start]
     visited = set(route)
     list_of_cities = list(database.values())
-    distance_to_end = lambda city: city.distance_to(finish)
+    distance_to_end = lambda city: get_distance(finish, city)
     
     current = start
     while current != finish:
-        neighbors = current.find_neighbors(list_of_cities, km_per_day)
-        sorted_neighbors = sorted(neighbors, key=distance_to_end)
+        neighbors = find_city_neighbors(
+            current,
+            list_of_cities,
+            km_per_day
+        )
+        
+        sorted_neighbors = sorted(
+            neighbors,
+            key=distance_to_end
+        )
+        
         for city in sorted_neighbors:
             if city not in visited:
                 current = city
@@ -212,12 +229,10 @@ def find_route(database, start, finish, km_per_day):
         visited.add(current)
 
         logging.debug(
-            f'Added {current.name}, {current.state} to route'
+            f'Added {current.name}, {current.state} to route: '
+            f'{get_distance(current, finish):5.2f} km to end'
         )
-        logging.debug(
-            f'Distance to end: {current.distance_to(finish):5.2f} km'
-        )
-        
+
     return route
 
 
