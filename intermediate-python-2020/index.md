@@ -2,11 +2,11 @@
 
 ### Description
 
-This Python workshop aims to familiarize participants with conventions and features of the language that are not necessarily covered in introductory courses, but that are nonetheless common in daily Python programming. In 3 hours, we will work together and write a Python script that plans a road trip through the USA, from scratch, using our wits, some help from Wikipedia, and a database of US cities.
+This Python workshop aims to familiarize participants with conventions and features of the language that are not necessarily covered in introductory courses, but that are nonetheless common in daily Python programming. In 3 hours, we will work together and write a Python script that plans a road trip through the USA, from scratch, using our wits, some help from Wikipedia, and a database of US cities (adapted from [here](https://simplemaps.com/data/us-cities)).
 
 ### What to expect from the workshop?
 
-Ideally, you will leave this workshop knowing a little bit more about Python than when you came in! Python has a fairly rich standard library that is often overlooked by beginners, so we will explore some of those modules. The goal is to equip you with knowledge to tackle programming problems more efficiently.
+Ideally, you will leave this workshop knowing a little bit more about Python than when you came in! Python has a fairly rich standard library that is often overlooked by beginners, so we will explore some of those modules ([see a complete list here](https://docs.python.org/3/library/)). The goal is to equip you with knowledge to tackle programming problems more efficiently.
 
 We will not make use of any third-party libraries, so _pandas_, _numpy_, and others are out of scope of this course. We will also not delve into more 'advanced' topics such as object-oriented programming (e.g. classes), profiling, or unit testing. While important, we consider those to require a little more experience with the language.
 
@@ -30,7 +30,8 @@ We will make use of the terminal and a text editor, not Jupyter notebooks. For a
 
 Google Maps revolutionized how we plan our car trips. It makes it simple to define a route between points A and B and check what is the fastest (or shortest) option. The program we will write today performs a similar task. Given two points, trace a route between them. However, instead of knowing all the roads in the US, we will work with the knowledge of all towns in the US. Our route planner will therefore trace a route that hops from city to city, until we reach our destination. This will be slightly less efficient than Google Maps, but maybe it'll make for more exciting trips!
 
-To begin, we need a database of US cities and their coordinates, which we made available at [this link](https://raw.githubusercontent.com/JoaoRodrigues/sc-teaching/master/intermediate-python/intermediate-python-workshop.tar.gz). We also included a smaller dataset, covering cities and towns in California only. Download the compressed archive to the Downloads folder of your computer and unpack it. It should create a folder called `intermediate-python-workshop` that contains two `.csv` files. In your terminal, move to this folder.
+To begin, we need a database of US cities and their coordinates, which we made available [here](intermediate-python-workshop.tar.gz). We also included a smaller dataset, covering cities and towns in California only. Download the 
+compressed archive to the Downloads folder of your computer and unpack it. It should create a folder called `intermediate-python-workshop` that contains two `.csv` files. In your terminal, move to this folder.
 
 ```bash
 $ cd ~/Downloads
@@ -97,7 +98,7 @@ The `if __name__ == '__main__'` statement is a special line that you see often i
 
 Now that we have an overall structure defined for our program, let's fill in the blanks, starting with our first function: `read_input`. 
 
-Reading _things_ from the command line in Python can be puzzling at first, but luckily there are a few modules in the standard library that make it a breeze! Unless you have a specific reason not to, I recommend defaulting to `argparse`. So, before anything else, let's import the module. Import statements should always come at the top of the script, after the docstring, an should be in alphabetical order:
+Reading _things_ from the command line in Python can be puzzling at first, but luckily there are a few modules in the standard library that make it a breeze! Unless you have a specific reason not to, I recommend defaulting to [argparse](https://docs.python.org/3/library/argparse.html). So, before anything else, let's import the module. Import statements should always come at the top of the script, after the docstring, an should be in alphabetical order:
 
 ```python
 import argparse
@@ -189,7 +190,7 @@ parser.add_argument(
 )
 ```
 
-where `'name'` is the actual name that the argument is going to have in our code. If the name starts with one or more `-`, then the argument is optional. Optional arguments can have a short name and a long name, specified with `-X` and `--xxxxx` respectively. The short name, since it's short, can only have one letter so pick it wisely! See the example in our code, `-r` stands for radius, and its long name is `--km-per-day`. 
+where `'name'` is the actual name that the argument is going to have in our code. If the name starts with one or more `-`, then the argument is optional. Optional arguments can have a short name and a long name, specified with `-X` and `--xxxxx` respectively. The short name should be only a couple of letters long. See the example in our code, `-r` stands for radius, and its long name is `--km-per-day`. 
 
 When defining arguments, you can also pass a number of options. For instance, a `help` text, for the formatter to use when you call `script.py -h`. Other common options are:
 
@@ -214,7 +215,7 @@ Perhaps the most important part of our program is the database of cities. We nee
 
 Reading (or writing) file in Python is done with the `open` function, which returns a _file object_. These file objects have methods such as `read()` or `readline()` that fetch the contents of the file, in bulk or one line at a time. Alternatively, because file objects act as iterators, you can also simply loop through them as if they were a list, getting one line for each iteration.
 
-The obvious argument to the `open` function is the path to the file we want to read from or write to. Python 3.4 introduced `pathlib`, a module that simplified handling paths across different operating systems. In addition, Path objects support opening/closing operations. Combined with the `with` statement, a manager to handle opening/closing the underlying file object, opening and reading files in a safe and cross-platform way boils down to a couple of lines.
+The obvious argument to the `open` function is the path to the file we want to read from or write to. Python 3.4 introduced [pathlib](https://docs.python.org/3/library/pathlib.html), a module that simplified handling paths across different operating systems. In addition, Path objects support opening/closing operations. Combined with the [with](https://docs.python.org/3/reference/compound_stmts.html#the-with-statement) statement, a manager to handle opening/closing the underlying file object, opening and reading files in a safe and cross-platform way boils down to a couple of lines.
 
 Let's use `pathlib` and `with` to open our database file in our `create_database` function. Start by importing `pathlib` at the top of the file, keeping in mind that imports should be listed alphabetically:
 
@@ -248,7 +249,7 @@ if __name__ == '__main__':
     create_database(args.database)
 ```
 
-Executing our route planner should now print the contents of the database file we picked as input. We could then extend our function to parse the contents of each line and start building our database. However, since CSV is a pretty common format, the Python standard library includes a module to help us! The `csv` module includes a `reader` function that takes a file object and returns the contents of each line as a list. Why should we bother using it instead of writing our own code to parse the file? Because likely, this code has been battle-tested by thousands of people. It might not be the fastest option, but it's the most robust. Besides, it's super readable and readability counts! 
+Executing our route planner should now print the contents of the database file we picked as input. We could then extend our function to parse the contents of each line and start building our database. However, since CSV is a pretty common format, the Python standard library includes a module to help us! The [csv](https://docs.python.org/3/library/csv.html) module includes a `reader` function that takes a file object and returns the contents of each line as a list. Why should we bother using it instead of writing our own code to parse the file? Because likely, this code has been battle-tested by thousands of people. It might not be the fastest option, but it's the most robust. Besides, it's super readable and readability counts! 
 
 Our `create_database` function looks like this:
 
@@ -279,7 +280,7 @@ Our skeleton code is able to read our database file, given input from the user. 
 
 As such, we need to have a data structure that, first of all, stores each city's information, such as name, state, and coordinates. We could use lists or tuples, but we'd have to remember the index of each field (what was the state again? 2nd or 3rd?). We could use dictionaries, so that we could query `city['state']`. But dictionaries are 1) mutable, meaning we (or someone) could corrupt our database while the program is running and 2) they are somewhat heavy in terms of memory.
 
-Python has a `collections` module that stores additional _container_ data types, which is what we want. In particular, there is a `namedtuple` class that looks like a tuple, acts like a tuple, but its fields can be accessed by their name: e.g. `namedtuple.field`. Isn't that neat?
+Python has a [collections](https://docs.python.org/3/library/collections.html) module that stores additional _container_ data types, which is what we want. In particular, there is a `namedtuple` class that looks like a tuple, acts like a tuple, but its fields can be accessed by their name: e.g. `namedtuple.field`. Isn't that neat?
 
 Let's write some code to understand them better:
 
@@ -369,7 +370,7 @@ if __name__ == '__main__':
 
 In an ideal world, datasets will not have errors. Someone has gone through them and magically cleaned them up so that our parsers read them perfectly every single time. In the real world, this _never_ happens, or you should assume so anyway. Enter error handling. Sometimes, you don't want your program to come to halt (3 hours after it started running ...) because of some minor error you can bypass or work around. Also, you might want to write your own error messages to make the problem clearer to your users.
 
-Python includes a very powerful `try/except` construct to _catch_ errors (or exceptions) and do something about it. We can define what type of exceptions we want to catch, or use a catch-all `Exception`. Whenever the code inside the `try` block raises an exception, Python checks if there is a matching `except` statement and if so, executes that code. You can think of it like an if-statement, but for errors: _if this code gives this error, do this_. As with if-statements, `try/except` blocks also have an `else` condition, that runs whenever the code did _not_ raise an exception.
+Python includes a very powerful [try/except](https://docs.python.org/3/tutorial/errors.html) construct to _catch_ errors (or exceptions) and do something about it. We can define what type of exceptions we want to catch, or use a catch-all `Exception`. Whenever the code inside the `try` block raises an exception, Python checks if there is a matching `except` statement and if so, executes that code. You can think of it like an if-statement, but for errors: _if this code gives this error, do this_. As with if-statements, `try/except` blocks also have an `else` condition, that runs whenever the code did _not_ raise an exception.
 
 Most importantly, you must resist the temptation to wrap your entire program in super generic `try/except` blocks to avoid __any__ errors! Use them only when you can predict with confidence that some lines can be problematic and you can provide a very obvious workaround for it. Let's see some code:
 
@@ -411,9 +412,9 @@ Running this on our input files will not give us any trouble. But try changing a
 
 Part of writing computer programs is _user interface_ design. A command-line interface, like the one we have for this route planner, _is_ a user interface so we must think carefully about how we interact with our users.  An important aspect of interface design is keeping users informed of what programs are up to - logging. Most people do some sort of logging with `print` statements, and that's OK for small programs. But what if you want to start categorizing messages based on importance? Some stuff is debug information only, while other stuff you really want your users to know!
 
-Python ships with a `logging` module that makes this task simple. In a simple example like this, we start by setting up the general logger, including the message format and the base logging level, and then we make calls to this logger when we need to write something to the screen.
+Python ships with a [logging](https://docs.python.org/3/library/logging.html) module that makes this task simple. In a simple example like this, we start by setting up the general logger, including the message format and the base logging level, and then we make calls to this logger when we need to write something to the screen.
 
-The messages we pass to the logger are simple strings, but we can augment them with some information about the state of the program (variable information) using f-strings. F-strings are just one of many way of formatting strings in Python, but we prefer them for their terseness and ability to execute logic. You define an f-string by prefixing any string with an _f_ and then include variables, or expressions, inside curly braces: e.g. `f'Hello {name}'` will print `Hello` followed by whatever the contents of the variable `name`. We can also write small pieces of logic inside the curly braces, for example to print the length of a list: `f'List has {len(my_list)} elements'`.
+The messages we pass to the logger are simple strings, but we can augment them with some information about the state of the program (variable information) using [f-strings](https://docs.python.org/3/reference/lexical_analysis.html#f-strings). F-strings are just one of many way of formatting strings in Python, but we prefer them for their terseness and ability to execute logic. You define an f-string by prefixing any string with an _f_ and then include variables, or expressions, inside curly braces: e.g. `f'Hello {name}'` will print `Hello` followed by whatever the contents of the variable `name`. We can also write small pieces of logic inside the curly braces, for example to print the length of a list: `f'List has {len(my_list)} elements'`.
 
 Let's write a logging facility for our program, starting by integrating it with our `read_cli` function to allow users to define how much verbosity they want.
 
@@ -568,7 +569,7 @@ if __name__ == '__main__':
 
 We are almost ready to write the heart of our program: the route finding algorithm! For this, we will take a simple approach. For a city, we find all other cities within a radius (the value of `--km-per-day`) and then pick the neighbor that is closest to the end point. In order to do this, we need to calculate distances between cities. Let's write a function for that!
 
-We need to import a bunch of functions from the `math` module to calculate the distance between two cities using the [harversine formula](https://en.wikipedia.org/wiki/Haversine_formula).
+We need to import a bunch of functions from the [math](https://docs.python.org/3/library/math.html) module to calculate the distance between two cities using the [harversine formula](https://en.wikipedia.org/wiki/Haversine_formula).
 
 ```python
 import argparse
@@ -670,6 +671,10 @@ def find_city_neighbors(city, candidates, radius):
     )
 ```
 
+The [filter](https://docs.python.org/3/library/functions.html#filter) built-in function in Python takes two arguments: a function and an iterable such as a list. It then loops over all elements in the iterable and applies the function to them, returning only those where the result was equivalent to the boolean value `True`. The advantage over our own for-loop + if-statement is two-fold: first, using `filter` results in more compact code, which is more readable; second, it returns an iterator, so you can apply it to very large iterables (think really large lists) without worrying about memory.
+
+The function argument to `filter` can be any function. You can define one yourself using the `def` construct, but in here (and generally when using `filter`) we use a [lambda](https://docs.python.org/3/tutorial/controlflow.html#lambda-expressions) function. Think of `lambda` as a short-hand notation to define very simple functions. The general syntax is `lambda <argument>: <result>`. In the case above, our `lambda` takes a city object (`c`) and returns `True`/`False` depending on the result of the comparison `get_distance(city, c) <= radius`. If we want to re-use the `lambda` function, we can always assign it to a variable, as we will see below and call it like a regular function. Neat!
+
 ### Part X: Writing our route planning algorithm!
 
 It seems we have all the pieces necessary to write our `find_route` function. We want to write it generically enough so that if we add other options/arguments in the future, we make the least changes possible. So, here we go!
@@ -725,6 +730,8 @@ def find_route(database, start, finish, km_per_day):
         
     return route
 ```
+
+The code above introduces two features of for-loops: the `break` statement and the `else` clause. A `break` statement does it says it does: it stops the loop. In our case, we use it to avoid iterating over all the cities in the `sorted_neighbors` list after we find one we haven't visited yet. The `else` clause in the for-loop is only valid when there is a `break` statement, and executes only if the for-loop is never stopped. In other words, if we iterate over `sorted_neighbors` and none of the cities triggers the if-statement, the `else` clause runs. It's a neat way of controlling the flow of the program and saving compute cycles.
 
 Now we have to update our main loop:
 
@@ -784,4 +791,6 @@ Let us know if you have any questions or feedback, you can reach me at `joaor@st
 
 ---
 
-Last updated: 02 March 2020
+Content licensed under CC-BY-4.0. For details, see the LICENSE file on the repository.
+
+Last updated: 18 March 2020
